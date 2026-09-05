@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- PDF-Lib para manipular PDFs -->
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-  <!-- JSZip para descargar varios PDF con su nombre en un archivo comprimido -->
+  <!-- JSZip para descargar varios PDF en un archivo comprimido -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     .tab-active { border-bottom: 3px solid #2563eb; color: #2563eb; font-weight: bold; }
@@ -16,6 +16,7 @@
     .th-ricardo { background-color: #e0f2fe; color: #0369a1; }
     .th-elkin { background-color: #ffe4e6; color: #991b1b; }
     .th-ainhoa { background-color: #fef9c3; color: #854d0e; }
+    .th-fran { background-color: #dcfce7; color: #166534; } /* Estilo para Fran */
     .th-anulacion { background-color: #f1f5f9; color: #334155; }
     .th-taxi { background-color: #fae8ff; color: #86198f; }
     .th-nuevo { background-color: #f3e8ff; color: #5b21b6; }
@@ -70,10 +71,11 @@
                 <th class="p-2 th-ricardo min-w-[60px]">Ricardo</th>
                 <th class="p-2 th-elkin min-w-[60px]">Elkin</th>
                 <th class="p-2 th-ainhoa min-w-[60px]">Ainhoa</th>
+                <th class="p-2 th-fran min-w-[60px]">Fran</th>
                 <th class="p-2 th-anulacion min-w-[65px]">Anulación</th>
                 <th class="p-2 th-taxi min-w-[60px]">Taxi</th>
                 <th class="p-2 th-nuevo min-w-[85px]">
-                  <input type="text" id="txt-custom-global" placeholder="+ Otro" oninput="actualizarLabelCustom()" class="w-full text-center text-[10px] p-0.5 border rounded bg-white text-slate-800 focus:outline-none"/>
+                  <input type="text" id="txt-custom-global" placeholder="+ Otro" class="w-full text-center text-[10px] p-0.5 border rounded bg-white text-slate-800 focus:outline-none"/>
                 </th>
               </tr>
             </thead>
@@ -123,6 +125,7 @@
       { id: 'ricardo', nombre: 'Ricardo' },
       { id: 'elkin', nombre: 'Elkin' },
       { id: 'ainhoa', nombre: 'Ainhoa' },
+      { id: 'fran', nombre: 'Fran' },
       { id: 'anulacion', nombre: 'Anulación' },
       { id: 'taxi', nombre: 'Taxi' }
     ];
@@ -225,20 +228,20 @@
       }
     }
 
-    // Obtener la fecha en formato DD-MM-YYYY
-    function getFechaFormateada() {
-      const hoy = new Date();
-      const dia = String(hoy.getDate()).padStart(2, '0');
-      const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-      const anio = hoy.getFullYear();
-      return `${dia}-${mes}-${anio}`;
+    // Obtener la fecha de MAÑANA en formato DD-MM (sin año)
+    function getFechaMananaFormateada() {
+      const manana = new Date();
+      manana.setDate(manana.getDate() + 1); // Suma 1 día
+      const dia = String(manana.getDate()).padStart(2, '0');
+      const mes = String(manana.getMonth() + 1).padStart(2, '0');
+      return `${dia}-${mes}`;
     }
 
-    // Procesa las hojas y genera un archivo PDF por chofer nombrando como "CHOFER - FECHA.pdf"
+    // Procesa las hojas y genera un archivo PDF por chofer nombrando como "CHOFER - DD-MM.pdf"
     async function procesarEImprimirPDFs() {
       const choferesMap = new Map();
       const nombreCustom = document.getElementById('txt-custom-global').value.trim() || 'Otro';
-      const fechaActual = getFechaFormateada();
+      const fechaManana = getFechaMananaFormateada();
 
       // Agrupar páginas por chofer
       for (const p of paginasCargadas) {
@@ -262,12 +265,10 @@
       }
 
       const zip = new JSZip();
-      let totalChoferesConHojas = 0;
 
       // Crear PDF individual por chofer
       for (const [chofer, hojas] of choferesMap.entries()) {
         if (hojas.length > 0) {
-          totalChoferesConHojas++;
           const pdfDoc = await PDFLib.PDFDocument.create();
 
           for (const item of hojas) {
@@ -276,12 +277,12 @@
           }
 
           const pdfBytes = await pdfDoc.save();
-          const fileName = `${chofer} - ${fechaActual}.pdf`;
+          const fileName = `${chofer} - ${fechaManana}.pdf`;
 
           // Agregar al ZIP
           zip.file(fileName, pdfBytes);
 
-          // Intentar abrir vista de impresión para dispositivos compatibles
+          // Abrir vista de impresión para dispositivos compatibles
           const blob = new Blob([pdfBytes], { type: 'application/pdf' });
           const url = URL.createObjectURL(blob);
           const printWin = window.open(url, '_blank');
@@ -294,7 +295,7 @@
       const zipUrl = URL.createObjectURL(zipContent);
       const a = document.createElement('a');
       a.href = zipUrl;
-      a.download = `Albaranes_${fechaActual}.zip`;
+      a.download = `Albaranes_${fechaManana}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -360,7 +361,7 @@
 
       const downloadBtn = document.getElementById('p2-download');
       downloadBtn.href = url;
-      downloadBtn.download = `Albaran_Corregido_${getFechaFormateada()}.pdf`;
+      downloadBtn.download = `Albaran_Corregido_${getFechaMananaFormateada()}.pdf`;
       document.getElementById('p2-resultado').classList.remove('hidden');
     }
   </script>
