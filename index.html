@@ -16,7 +16,8 @@
     .th-ricardo { background-color: #e0f2fe; color: #0369a1; }
     .th-elkin { background-color: #ffe4e6; color: #991b1b; }
     .th-ainhoa { background-color: #fef9c3; color: #854d0e; }
-    .th-fran { background-color: #dcfce7; color: #166534; } /* Estilo para Fran */
+    .th-fran { background-color: #dcfce7; color: #166534; }
+    .th-eider { background-color: #ffedd5; color: #c2410c; } /* Estilo para Eider */
     .th-anulacion { background-color: #f1f5f9; color: #334155; }
     .th-taxi { background-color: #fae8ff; color: #86198f; }
     .th-nuevo { background-color: #f3e8ff; color: #5b21b6; }
@@ -55,6 +56,12 @@
         </button>
       </div>
 
+      <!-- Selector de Fecha de Impresión -->
+      <div id="contenedor-fecha" class="hidden bg-white p-3 rounded-lg shadow border border-slate-200 flex flex-col gap-1">
+        <label for="fecha-impresion" class="text-xs font-bold text-slate-700">📅 Fecha para nombrar archivos:</label>
+        <input type="date" id="fecha-impresion" class="border border-slate-300 rounded p-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+
       <!-- Alerta de Hojas Sin Asignar -->
       <div id="alerta-no-impresas" class="hidden bg-amber-50 border-l-4 border-amber-500 p-2.5 rounded-r-md text-xs text-amber-800">
         <p class="font-bold">⚠️ Hojas sin asignar detectadas:</p>
@@ -72,6 +79,7 @@
                 <th class="p-2 th-elkin min-w-[60px]">Elkin</th>
                 <th class="p-2 th-ainhoa min-w-[60px]">Ainhoa</th>
                 <th class="p-2 th-fran min-w-[60px]">Fran</th>
+                <th class="p-2 th-eider min-w-[60px]">Eider</th>
                 <th class="p-2 th-anulacion min-w-[65px]">Anulación</th>
                 <th class="p-2 th-taxi min-w-[60px]">Taxi</th>
                 <th class="p-2 th-nuevo min-w-[85px]">
@@ -126,11 +134,20 @@
       { id: 'elkin', nombre: 'Elkin' },
       { id: 'ainhoa', nombre: 'Ainhoa' },
       { id: 'fran', nombre: 'Fran' },
+      { id: 'eider', nombre: 'Eider' },
       { id: 'anulacion', nombre: 'Anulación' },
       { id: 'taxi', nombre: 'Taxi' }
     ];
 
     let paginasCargadas = [];
+
+    // Inicializar input de fecha por defecto con el día de mañana
+    document.addEventListener('DOMContentLoaded', () => {
+      const manana = new Date();
+      manana.setDate(manana.getDate() + 1);
+      const isoManana = manana.toISOString().split('T')[0];
+      document.getElementById('fecha-impresion').value = isoManana;
+    });
 
     function switchTab(tabId) {
       document.getElementById('tab1').classList.add('hidden');
@@ -172,16 +189,17 @@
           tr.id = `row-page-${idGlobalPage}`;
           tr.className = "hover:bg-slate-50 transition-colors";
 
+          // Usamos 'type="radio"' para forzar una única elección por fila
           let celsChoferes = choferesBase.map(c => `
             <td class="p-2 text-center">
-              <input type="checkbox" onchange="verificarMatriz()" data-page-id="${idGlobalPage}" value="${c.nombre}" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-0 cursor-pointer">
+              <input type="radio" name="chofer-page-${idGlobalPage}" onchange="verificarMatriz()" data-page-id="${idGlobalPage}" value="${c.nombre}" class="w-4 h-4 text-blue-600 focus:ring-0 cursor-pointer">
             </td>
           `).join('');
 
           // Columna para Chofer Personalizado
           celsChoferes += `
             <td class="p-2 text-center">
-              <input type="checkbox" onchange="verificarMatriz()" data-page-id="${idGlobalPage}" value="CUSTOM" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-0 cursor-pointer">
+              <input type="radio" name="chofer-page-${idGlobalPage}" onchange="verificarMatriz()" data-page-id="${idGlobalPage}" value="CUSTOM" class="w-4 h-4 text-blue-600 focus:ring-0 cursor-pointer">
             </td>
           `;
 
@@ -197,6 +215,7 @@
         }
       }
 
+      document.getElementById('contenedor-fecha').classList.remove('hidden');
       document.getElementById('contenedor-matriz').classList.remove('hidden');
       document.getElementById('p1-acciones').classList.remove('hidden');
       verificarMatriz();
@@ -207,9 +226,9 @@
 
       paginasCargadas.forEach(p => {
         const row = document.getElementById(`row-page-${p.id}`);
-        const checkboxes = document.querySelectorAll(`input[data-page-id="${p.id}"]:checked`);
+        const radioSeleccionado = document.querySelector(`input[name="chofer-page-${p.id}"]:checked`);
         
-        if (checkboxes.length === 0) {
+        if (!radioSeleccionado) {
           hojasSinCheck.push(`${p.fileName} (Pág. ${p.pageNum})`);
           row.classList.add('row-unassigned');
         } else {
@@ -222,33 +241,37 @@
 
       if (hojasSinCheck.length > 0) {
         alerta.classList.remove('hidden');
-        textoAlerta.innerHTML = `<b>${hojasSinCheck.length} hoja(s) omitida(s):</b> ` + hojasSinCheck.join(', ');
+        textoAlerta.innerHTML = `<b>${hojasSinCheck.length} hoja(s) sin asignar:</b> ` + hojasSinCheck.join(', ');
       } else {
         alerta.classList.add('hidden');
       }
     }
 
-    // Obtener la fecha de MAÑANA en formato DD-MM (sin año)
-    function getFechaMananaFormateada() {
-      const manana = new Date();
-      manana.setDate(manana.getDate() + 1); // Suma 1 día
-      const dia = String(manana.getDate()).padStart(2, '0');
-      const mes = String(manana.getMonth() + 1).padStart(2, '0');
-      return `${dia}-${mes}`;
+    // Formatear la fecha seleccionada en el input a formato DD-MM
+    function getFechaFormateada() {
+      const fechaVal = document.getElementById('fecha-impresion').value;
+      if (!fechaVal) {
+        const hoy = new Date();
+        const dia = String(hoy.getDate()).padStart(2, '0');
+        const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+        return `${dia}-${mes}`;
+      }
+      const partes = fechaVal.split('-'); // AAAA-MM-DD
+      return `${partes[2]}-${partes[1]}`;
     }
 
     // Procesa las hojas y genera un archivo PDF por chofer nombrando como "CHOFER - DD-MM.pdf"
     async function procesarEImprimirPDFs() {
       const choferesMap = new Map();
       const nombreCustom = document.getElementById('txt-custom-global').value.trim() || 'Otro';
-      const fechaManana = getFechaMananaFormateada();
+      const fechaElegida = getFechaFormateada();
 
       // Agrupar páginas por chofer
       for (const p of paginasCargadas) {
-        const checkboxes = document.querySelectorAll(`input[data-page-id="${p.id}"]:checked`);
+        const radioSeleccionado = document.querySelector(`input[name="chofer-page-${p.id}"]:checked`);
         
-        for (const chk of checkboxes) {
-          let nombreChofer = chk.value;
+        if (radioSeleccionado) {
+          let nombreChofer = radioSeleccionado.value;
           if (nombreChofer === 'CUSTOM') {
             nombreChofer = nombreCustom;
           }
@@ -277,12 +300,12 @@
           }
 
           const pdfBytes = await pdfDoc.save();
-          const fileName = `${chofer} - ${fechaManana}.pdf`;
+          const fileName = `${chofer} - ${fechaElegida}.pdf`;
 
           // Agregar al ZIP
           zip.file(fileName, pdfBytes);
 
-          // Abrir vista de impresión para dispositivos compatibles
+          // Abrir vista de impresión
           const blob = new Blob([pdfBytes], { type: 'application/pdf' });
           const url = URL.createObjectURL(blob);
           const printWin = window.open(url, '_blank');
@@ -295,7 +318,7 @@
       const zipUrl = URL.createObjectURL(zipContent);
       const a = document.createElement('a');
       a.href = zipUrl;
-      a.download = `Albaranes_${fechaManana}.zip`;
+      a.download = `Albaranes_${fechaElegida}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -361,7 +384,7 @@
 
       const downloadBtn = document.getElementById('p2-download');
       downloadBtn.href = url;
-      downloadBtn.download = `Albaran_Corregido_${getFechaMananaFormateada()}.pdf`;
+      downloadBtn.download = `Albaran_Corregido_${getFechaFormateada()}.pdf`;
       document.getElementById('p2-resultado').classList.remove('hidden');
     }
   </script>
